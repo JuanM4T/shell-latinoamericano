@@ -53,21 +53,27 @@ int main(void)
 		pid_fork = fork();
 		if(pid_fork == 0){
 			restore_terminal_signals();
-			pid_fork = execvp(args[0], args);
+			if(args[0] == "exit"){
+				//kill
+			}
+			/*pid_fork = */execvp(args[0], args);
 			printf("hubo un eggroll!!! Comando: %s\n", args[0]);
-			exit(status);
+			exit(-1);
 		}
-		if(pid_fork > 0){
+		else if(pid_fork > 0){
 			new_process_group(pid_fork);
 			if(!background){
 				//set_terminal(pid_fork);
 				pid_wait = waitpid(pid_fork, &status, 0);
-				analyze_status(status,&info);
-				printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_wait, args[0], info);
+				status_res = analyze_status(status,&info);
+				if(pid_fork == pid_wait) printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_fork, args[0], info);
+				else perror("Wait error");
 				//set_terminal(pid_fork);
 			} else {
 				printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 			}
+		} else {
+			perror("Fork error");
 		}
 		
 		
