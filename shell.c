@@ -64,7 +64,7 @@ int main(void)
 				pid_wait = waitpid(pid_fork, &status, 0);
 				analyze_status(status,&info);
 				printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_fork, args[0], info);
-				set_terminal(pid_wait)
+				set_terminal(pid_wait);
 			} else {
 				printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 			}
