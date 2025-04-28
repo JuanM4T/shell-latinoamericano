@@ -33,9 +33,10 @@ int main(void)
 	int status;             /* Status returned by wait */
 	enum status status_res; /* Status processed by analyze_status() */
 	int info;				/* Info processed by analyze_status() */
-
+	
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{   		
+		ignore_terminal_signals();
 		printf("COMMAND->");
 		fflush(stdout);
 		get_command(inputBuffer, MAX_LINE, args, &background);  /* Get next command */
@@ -51,19 +52,24 @@ int main(void)
 		 **/
 		pid_fork = fork();
 		if(pid_fork == 0){
+			restore_terminal_signals();
 			pid_fork = execvp(args[0], args);
 			printf("hubo un eggroll!!! Comando: %s\n", args[0]);
 			exit(status);
 		}
 		if(pid_fork > 0){
+			new_process_group(pid_fork);
 			if(!background){
-				waitpid(pid_fork, &status, 0);
+				set_terminal(pid_fork);
+				pid_wait = waitpid(pid_fork, &status, 0);
 				analyze_status(status,&info);
 				printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_fork, args[0], info);
+				set_terminal(pid_wait)
 			} else {
 				printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 			}
 		}
+		
 		
 
 	} /* End while */
