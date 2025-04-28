@@ -53,6 +53,7 @@ int main(void)
 		if(pid_fork == 0){
 			pid_fork = execvp(args[0], args);
 			printf("hubo un eggroll!!! Comando: %s\n", args[0]);
+			exit(status);
 		}
 		if(pid_fork > 0){
 			if(!background){
