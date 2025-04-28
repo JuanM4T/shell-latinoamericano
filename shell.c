@@ -60,11 +60,11 @@ int main(void)
 		if(pid_fork > 0){
 			new_process_group(pid_fork);
 			if(!background){
-				set_terminal(pid_fork);
+				//set_terminal(pid_fork);
 				pid_wait = waitpid(pid_fork, &status, 0);
 				analyze_status(status,&info);
 				printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_fork, args[0], info);
-				set_terminal(pid_wait);
+				//set_terminal(pid_fork);
 			} else {
 				printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 			}
