@@ -19,7 +19,6 @@
 #include <signal.h>
 
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough */
-#define COMANDOS_INTERNOS ["cd"]
 
 /**
  * MAIN
@@ -34,7 +33,6 @@ int main(void)
 	int status;             /* Status returned by wait */
 	enum status status_res; /* Status processed by analyze_status() */
 	int info;				/* Info processed by analyze_status() */
-	int int_cmd;			/* Internal command boolean */
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{   		
 		ignore_terminal_signals();
@@ -51,33 +49,35 @@ int main(void)
 		 *	 (4) Shell shows a status message for processed command
 		 * 	 (5) Loop returns to get_commnad() function
 		 **/
-		for(int i = 0; i <= COMANDOS_INTERNOS.length; i++)
-		pid_fork = fork();
-		if(pid_fork == 0){
-			restore_terminal_signals();
-			if(args[0] == "exit"){
-				//kill
+		//comandos internos
+		if(args[0] == "cd") chdir(args[1]);
+			else {
+			pid_fork = fork();
+			if(pid_fork == 0){
+				restore_terminal_signals();
+				if(args[0] == "exit"){
+					//kill
+				}
+				/*pid_fork = */execvp(args[0], args);
+				printf("hubo un eggroll!!! Comando: %s\n", args[0]);
+				exit(-1);
 			}
-			/*pid_fork = */execvp(args[0], args);
-			printf("hubo un eggroll!!! Comando: %s\n", args[0]);
-			exit(-1);
-		}
-		else if(pid_fork > 0){
-			new_process_group(pid_fork);
-			if(!background){
-				//set_terminal(pid_fork);
-				pid_wait = waitpid(pid_fork, &status, 0);
-				status_res = analyze_status(status,&info);
-				if(pid_fork == pid_wait) printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_fork, args[0], info);
-				else perror("Wait error");
-				//set_terminal(pid_fork);
+			else if(pid_fork > 0){
+				new_process_group(pid_fork);
+				if(!background){
+					//set_terminal(pid_fork);
+					pid_wait = waitpid(pid_fork, &status, 0);
+					status_res = analyze_status(status,&info);
+					if(pid_fork == pid_wait) printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_fork, args[0], info);
+					else perror("Wait error");
+					//set_terminal(pid_fork);
+				} else {
+					printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
+				}
 			} else {
-				printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
+				perror("Fork error");
 			}
-		} else {
-			perror("Fork error");
-		}
-		
+	}
 		
 
 	} /* End while */
