@@ -16,7 +16,6 @@
 
 
 #include "job_control.h"   /* Remember to compile with module job_control.c */
-#include <signal.h>
 
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough */
 
@@ -50,14 +49,12 @@ int main(void)
 		 * 	 (5) Loop returns to get_commnad() function
 		 **/
 		//comandos internos
-		if(strcmp(args[0], "cd") == 0) chdir(args[1]);
+		if(strcmp(args[0], "cd") == 0) chdir(args[1]);	
+		if(strcmp(args[0], "exit") == 0) ; //exit
 			else {
 			pid_fork = fork();
 			if(pid_fork == 0){
 				restore_terminal_signals();
-				if(args[0] == "exit"){
-					//kill
-				}
 				/*pid_fork = */execvp(args[0], args);
 				printf("hubo un eggroll!!! Comando: %s\n", args[0]);
 				exit(-1);
@@ -68,7 +65,7 @@ int main(void)
 					//set_terminal(pid_fork);
 					pid_wait = waitpid(pid_fork, &status, 0);
 					status_res = analyze_status(status,&info);
-					if(pid_fork == pid_wait) printf("Foreground pid: %d, command: %s, Exited, info: %d\n",pid_fork, args[0], info);
+					if(pid_fork == pid_wait) printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_fork, args[0], status_strings[status_res], info);
 					else perror("Wait error");
 					//set_terminal(pid_fork);
 				} else {
