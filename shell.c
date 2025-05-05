@@ -32,9 +32,10 @@ int main(void)
 	int status;             /* Status returned by wait */
 	enum status status_res; /* Status processed by analyze_status() */
 	int info;				/* Info processed by analyze_status() */
+	job* job_list = new_list("job list");
+	ignore_terminal_signals();
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{   		
-		ignore_terminal_signals();
 		printf("COMMAND->");
 		fflush(stdout);
 		get_command(inputBuffer, MAX_LINE, args, &background);  /* Get next command */
