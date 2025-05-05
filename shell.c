@@ -50,7 +50,7 @@ int main(void)
 		 * 	 (5) Loop returns to get_commnad() function
 		 **/
 		//comandos internos
-		if(args[0] == "cd") chdir(args[1]);
+		if(strcmp(args[0], "cd") == 0) chdir(args[1]);
 			else {
 			pid_fork = fork();
 			if(pid_fork == 0){
