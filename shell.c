@@ -19,6 +19,34 @@
 
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough */
 
+job* job_list;
+
+void sigchld_handler(int num_sig) {
+	int status;
+	pid_t pid_wait;
+	int info;
+	job_iterator iter = get_iterator(job_list);
+	while(has_next(iter)){
+		job *j = next(iter);
+		pid_wait = waitpid(j->pgid, &status, WNOHANG | WUNTRACED | W_OK);
+		if(pid_wait == j->pgid){
+			enum status status_res = analyze_status(status, &info);
+			printf("Background pid: %d, command %s, %s, info: %d\n",j->pgid, j->command, status_strings[status_res], info);
+			if(status_res == SUSPENDED){
+				j->state = STOPPED;
+			}
+			else if(status_res == CONTINUED){
+				j->state = BACKGROUND;
+			}
+			else{
+				delete_job(job_list, j);
+			}
+		}else{
+			perror("Wait error");
+		}
+	}
+}
+
 /**
  * MAIN
  **/
@@ -32,8 +60,10 @@ int main(void)
 	int status;             /* Status returned by wait */
 	enum status status_res; /* Status processed by analyze_status() */
 	int info;				/* Info processed by analyze_status() */
-	job* job_list = new_list("job list");
+	
 	ignore_terminal_signals();
+	signal(SIGCHLD, sigchld_handler);
+	job_list = new_list("job list");
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{   		
 		printf("COMMAND->");
@@ -53,6 +83,9 @@ int main(void)
 		if(!strcmp(args[0], "cd")) chdir(args[1]);	
 		else if(!strcmp(args[0], "exit")){
 			printf("Bye\n"); exit(EXIT_SUCCESS);
+		} else if(!strcmp(args[0], "jobs")){
+			printf("Jobs:\n");
+			
 		}
 		else {
 			pid_fork = fork();
@@ -64,11 +97,15 @@ int main(void)
 					set_terminal(getpid());
 					if(pid_fork == pid_wait){
 						status_res = analyze_status(status,&info);
+						if(status_res == SUSPENDED){
+							add_job(job_list, new_job(pid_fork, args[0], STOPPED));
+						}
 						printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_fork, args[0], status_strings[status_res], info);
 						
 					} 
 					else perror("Wait error");
 				} else {
+					add_job(job_list, new_job(pid_fork, args[0], BACKGROUND));
 					printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 				}
 			}
