@@ -19,6 +19,7 @@
 #include <signal.h>
 
 #define MAX_LINE 256 /* 256 chars per line, per command, should be enough */
+#define COMANDOS_INTERNOS ["cd"]
 
 /**
  * MAIN
@@ -33,7 +34,7 @@ int main(void)
 	int status;             /* Status returned by wait */
 	enum status status_res; /* Status processed by analyze_status() */
 	int info;				/* Info processed by analyze_status() */
-	
+	int int_cmd;			/* Internal command boolean */
 	while (1)   /* Program terminates normally inside get_command() after ^D is typed*/
 	{   		
 		ignore_terminal_signals();
@@ -50,6 +51,7 @@ int main(void)
 		 *	 (4) Shell shows a status message for processed command
 		 * 	 (5) Loop returns to get_commnad() function
 		 **/
+		for(int i = 0; i <= COMANDOS_INTERNOS.length; i++)
 		pid_fork = fork();
 		if(pid_fork == 0){
 			restore_terminal_signals();
