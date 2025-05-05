@@ -53,9 +53,9 @@ int main(void)
 		else if(!strcmp(args[0], "exit")){
 			printf("Bye\n"); exit(EXIT_SUCCESS);
 		}
-			else {
-				pid_fork = fork();
-				if(pid_fork > 0){
+		else {
+			pid_fork = fork();
+			if(pid_fork > 0){
 				new_process_group(pid_fork);
 				if(!background){
 					set_terminal(pid_fork);
@@ -72,13 +72,14 @@ int main(void)
 					printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 				}
 			}
-			if(pid_fork == 0){
-				restore_terminal_signals();
-				if(!background) 
-				/*pid_fork = */execvp(args[0], args);
-				printf("hubo un eggroll!!! Comando: %s\n", args[0]);
-				exit(-1);
-			}
+		if(pid_fork == 0){
+			new_process_group(pid_fork);
+			if(!background) set_terminal(pid_fork);
+			restore_terminal_signals();
+			/*pid_fork = */execvp(args[0], args);
+			printf("hubo un eggroll!!! Comando: %s\n", args[0]);
+			exit(-1);
+		}
 	}
 		
 
