@@ -59,7 +59,7 @@ int main(void)
 				new_process_group(pid_fork);
 				if(!background){
 					set_terminal(pid_fork);
-					pid_wait = wait(&status);
+					pid_wait = waitpid(pid_fork, &status, WUNTRACED);
 					set_terminal(getpid());
 					if(pid_fork == pid_wait){
 						status_res = analyze_status(status,&info);
@@ -67,7 +67,6 @@ int main(void)
 						
 					} 
 					else perror("Wait error");
-					//set_terminal(pid_fork);
 				} else {
 					printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 				}
