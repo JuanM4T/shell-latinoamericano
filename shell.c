@@ -83,10 +83,7 @@ int main(void)
 		if(!strcmp(args[0], "cd")) chdir(args[1]);	
 		else if(!strcmp(args[0], "exit")){
 			printf("Bye\n"); exit(EXIT_SUCCESS);
-		} else if(!strcmp(args[0], "jobs")){
-			printf("Jobs:\n");
-			
-		}
+		} else if(!strcmp(args[0], "jobs")) print_job_list(job_list);
 		else {
 			pid_fork = fork();
 			if(pid_fork > 0){
