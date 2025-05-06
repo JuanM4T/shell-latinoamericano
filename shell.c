@@ -84,6 +84,26 @@ int main(void)
 		else if(!strcmp(args[0], "exit")){
 			printf("Bye\n"); exit(EXIT_SUCCESS);
 		} else if(!strcmp(args[0], "jobs"))if(empty_list(job_list)) printf("no jobs running at the moment.\n"); else print_job_list(job_list);
+		else if(!strcmp(args[0], "fg") || !strcmp(args[0], "bg")){
+			job_iterator iter = get_iterator(job_list);
+			job* last_stopped = NULL;
+			job* last_background = NULL;
+			while(has_next(iter)){
+				job *j = next(iter);
+				if(j->state == STOPPED){
+					last_stopped = j;
+					last_background = j;
+				} 
+				if(j->state == BACKGROUND) last_background = j;
+			}
+			if(last_stopped == NULL) continue;
+			if(!strcmp(args[0], "fg")){//bring to foreground, stopped or not
+				last_background->state = FOREGROUND;
+			}
+			else{//bring from stopped to background
+
+			}
+		}
 		else {
 			pid_fork = fork();
 			if(pid_fork > 0){
