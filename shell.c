@@ -161,11 +161,26 @@ int main(void)
 			if(!background) set_terminal(pid_fork);
 			if(file_in != NULL){
 				infile = fopen(file_in, "r");
-				if(infile != NULL) dup2(fileno(infile), STDIN_FILENO);
+				if(infile == NULL){
+					perror("Error opening input file");
+					continue;
+				}
+				if(dup2(fileno(infile), STDIN_FILENO) == -1){
+					perror("Error redirecting input");
+					continue;
+				}
+				
 			}
 			if(file_out != NULL){
 				outfile = fopen(file_out, "w");
-				if(outfile != NULL) dup2(fileno(outfile), STDOUT_FILENO);
+				if(outfile == NULL){
+					perror("Error opening output file");
+					continue;
+				}
+				if( dup2(fileno(outfile), STDOUT_FILENO) == -1){
+					perror("Error redirecting output");
+					continue;
+				}
 			}
 			restore_terminal_signals();
 			/*pid_fork = */execvp(args[0], args);
