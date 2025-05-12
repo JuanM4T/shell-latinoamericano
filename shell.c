@@ -61,6 +61,8 @@ int main(void)
 	int status;             /* Status returned by wait */
 	enum status status_res; /* Status processed by analyze_status() */
 	int info;				/* Info processed by analyze_status() */
+	char *file_in, *file_out;
+	FILE *infile, *outfile;
 	
 	ignore_terminal_signals();
 	signal(SIGCHLD, sigchld_handler);
@@ -70,6 +72,7 @@ int main(void)
 		printf("COMMAND->");
 		fflush(stdout);
 		get_command(inputBuffer, MAX_LINE, args, &background);  /* Get next command */
+		parse_redirections(args, &file_in, &file_out);
 		
 		if(args[0]==NULL) continue;   /* Do nothing if empty command */
 
@@ -151,6 +154,14 @@ int main(void)
 		if(pid_fork == 0){ //padre
 			new_process_group(pid_fork);
 			if(!background) set_terminal(pid_fork);
+			if(file_in != NULL){
+				infile = fopen(file_in, "r");
+				if(infile != NULL) dup2(fileno(infile), STDIN_FILENO);
+			}
+			if(file_out != NULL){
+				outfile = fopen(file_out, "w");
+				if(outfile != NULL) dup2(fileno(outfile), STDOUT_FILENO);
+			}
 			restore_terminal_signals();
 			/*pid_fork = */execvp(args[0], args);
 			printf("hubo un eggroll!!! Comando: %s\n", args[0]);
