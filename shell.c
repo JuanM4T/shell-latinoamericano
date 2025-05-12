@@ -28,7 +28,7 @@ void sigchld_handler(int num_sig) {
 	job_iterator iter = get_iterator(job_list);
 	while(has_next(iter)){
 		job *j = next(iter);
-		pid_wait = waitpid(j->pgid, &status, WNOHANG | WUNTRACED);
+		pid_wait = waitpid(j->pgid, &status, WNOHANG | WUNTRACED | WCONTINUED);
 		if(pid_wait == j->pgid){
 			enum status status_res = analyze_status(status, &info);
 			printf("Background pid: %d, command %s, %s, info: %d\n",j->pgid, j->command, status_strings[status_res], info);
@@ -81,41 +81,59 @@ int main(void)
 		 * 	 (5) Loop returns to get_commnad() function
 		 **/
 		//comandos internos
-		if(!strcmp(args[0], "cd")) chdir(args[1]);	
+		if(!strcmp(args[0], "cd")){
+			if(chdir(args[1]) != 0) printf("No existe el directorio %s\n", args[1]);
+		} 
 		else if(!strcmp(args[0], "exit")){
 			printf("Bye\n"); exit(EXIT_SUCCESS);
-		} else if(!strcmp(args[0], "jobs"))if(empty_list(job_list)) printf("no jobs running at the moment.\n"); else print_job_list(job_list);
+		} else if(!strcmp(args[0], "jobs"))	
+			if(empty_list(job_list)) printf("no jobs running at the moment.\n"); 
+			else print_job_list(job_list);
 		else if(!strcmp(args[0], "fg") || !strcmp(args[0], "bg")){
-			job_iterator iter = get_iterator(job_list);
-			job* last_stopped = iter;
-			job* last_background = iter;
-			while(has_next(iter)){
-				job *j = next(iter);
-				if(j->state == STOPPED){
-					last_stopped = j;
-					last_background = j;
-				} 
-				if(j->state == BACKGROUND) last_background = j;
+			if(list_size(job_list) == 0){
+				printf("no jobs to manipulate");
+				continue;
 			}
-			if(last_stopped == NULL) continue;
+			job* job_to_resume;
+			if(args[1] != NULL){ //nos dan número
+				char* cmp;
+				unsigned short int suspected_index = strtoul(args[1], &cmp, 0);
+				if(cmp == args[1]){
+					printf("Usage: <fg/bg> <job index>\n");
+					continue;
+				}
+				else if(suspected_index == 0 || suspected_index > list_size(job_list)){
+					printf("Index out of bounds for jobs\n");
+					continue;
+				}
+				else job_to_resume = get_item_bypos(job_list, suspected_index);
+			} else job_to_resume = get_item_bypos(job_list, list_size(job_list));
+			
+			unsigned short int is_stopped = job_to_resume->state == STOPPED;
 			if(!strcmp(args[0], "fg")){//bring to foreground, stopped or not
 				block_SIGCHLD();
-				last_background->state = FOREGROUND;
-				set_terminal(last_background->pgid);
-				if(last_background == last_stopped) killpg(last_background->pgid, SIGCONT);
-				pid_wait = waitpid(last_background->pgid, &status, WUNTRACED);
-				delete_job(job_list, last_background);
+				job_to_resume->state = FOREGROUND;
+				set_terminal(job_to_resume->pgid);
+				if(is_stopped) killpg(job_to_resume->pgid, SIGCONT);
+				pid_wait = waitpid(job_to_resume->pgid, &status, WUNTRACED);
+				delete_job(job_list, job_to_resume);
 				set_terminal(getpid());
 				status_res = analyze_status(status, &info);
-				printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_fork, args[0], status_strings[status_res], info);
+				printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_wait, job_to_resume->command, status_strings[status_res], info);
 				unblock_SIGCHLD();
 			}
 			else{//bring from stopped to background
+				if(!is_stopped){
+					printf("This job (%s) is already in the background!",job_to_resume->command);
+					continue;
+				}
+				job_to_resume->state = BACKGROUND;
+				killpg(job_to_resume->pgid, SIGCONT);
 			}
 		}
 		else {
 			pid_fork = fork();
-			if(pid_fork > 0){
+			if(pid_fork > 0){ //hijo
 				new_process_group(pid_fork);
 				if(!background){
 					set_terminal(pid_fork);
@@ -135,7 +153,7 @@ int main(void)
 					printf("Background job running... pid: %d, command: %s\n", pid_fork, args[0]);	
 				}
 			}
-		if(pid_fork == 0){
+		if(pid_fork == 0){ //padre
 			new_process_group(pid_fork);
 			if(!background) set_terminal(pid_fork);
 			restore_terminal_signals();
