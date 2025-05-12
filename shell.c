@@ -28,7 +28,7 @@ void sigchld_handler(int num_sig) {
 	job_iterator iter = get_iterator(job_list);
 	while(has_next(iter)){
 		job *j = next(iter);
-		pid_wait = waitpid(j->pgid, &status, WNOHANG | WUNTRACED | W_OK);
+		pid_wait = waitpid(j->pgid, &status, WNOHANG | WUNTRACED);
 		if(pid_wait == j->pgid){
 			enum status status_res = analyze_status(status, &info);
 			printf("Background pid: %d, command %s, %s, info: %d\n",j->pgid, j->command, status_strings[status_res], info);
@@ -40,9 +40,10 @@ void sigchld_handler(int num_sig) {
 			}
 			else{
 				delete_job(job_list, j);
+				
 			}
 		}else{
-			perror("Wait error");
+			perror("Wait error sigchld");
 		}
 	}
 }
@@ -86,8 +87,8 @@ int main(void)
 		} else if(!strcmp(args[0], "jobs"))if(empty_list(job_list)) printf("no jobs running at the moment.\n"); else print_job_list(job_list);
 		else if(!strcmp(args[0], "fg") || !strcmp(args[0], "bg")){
 			job_iterator iter = get_iterator(job_list);
-			job* last_stopped = NULL;
-			job* last_background = NULL;
+			job* last_stopped = iter;
+			job* last_background = iter;
 			while(has_next(iter)){
 				job *j = next(iter);
 				if(j->state == STOPPED){
@@ -98,10 +99,18 @@ int main(void)
 			}
 			if(last_stopped == NULL) continue;
 			if(!strcmp(args[0], "fg")){//bring to foreground, stopped or not
+				block_SIGCHLD();
 				last_background->state = FOREGROUND;
+				set_terminal(last_background->pgid);
+				if(last_background == last_stopped) killpg(last_background->pgid, SIGCONT);
+				pid_wait = waitpid(last_background->pgid, &status, WUNTRACED);
+				delete_job(job_list, last_background);
+				set_terminal(getpid());
+				status_res = analyze_status(status, &info);
+				printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_fork, args[0], status_strings[status_res], info);
+				unblock_SIGCHLD();
 			}
 			else{//bring from stopped to background
-
 			}
 		}
 		else {
