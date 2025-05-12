@@ -42,7 +42,7 @@ void sigchld_handler(int num_sig) {
 				delete_job(job_list, j);
 				
 			}
-		}else{
+		}else if(pid_wait == -1){
 			perror("Wait error sigchld");
 		}
 	}
@@ -94,7 +94,7 @@ int main(void)
 			else print_job_list(job_list);
 		else if(!strcmp(args[0], "fg") || !strcmp(args[0], "bg")){
 			if(list_size(job_list) == 0){
-				printf("no jobs to manipulate");
+				printf("no jobs to manipulate.\n");
 				continue;
 			}
 			job* job_to_resume;
@@ -108,21 +108,26 @@ int main(void)
 			} else job_to_resume = get_item_bypos(job_list, list_size(job_list));
 			
 			unsigned short int is_stopped = job_to_resume->state == STOPPED;
+			pid_t pid_job = job_to_resume->pgid;
+			char* command = malloc(sizeof(char) * (strlen(job_to_resume->command) + 1));
+			strcpy(command, job_to_resume->command);
 			if(!strcmp(args[0], "fg")){//bring to foreground, stopped or not
 				block_SIGCHLD();
-				job_to_resume->state = FOREGROUND;
-				set_terminal(job_to_resume->pgid);
-				if(is_stopped) killpg(job_to_resume->pgid, SIGCONT);
-				pid_wait = waitpid(job_to_resume->pgid, &status, WUNTRACED);
 				delete_job(job_list, job_to_resume);
+				set_terminal(pid_job);
+				if(is_stopped) killpg(pid_job, SIGCONT);
+				pid_wait = waitpid(pid_job, &status, WUNTRACED);
 				set_terminal(getpid());
 				status_res = analyze_status(status, &info);
-				printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_wait, job_to_resume->command, status_strings[status_res], info);
+				if(status_res == SUSPENDED){
+					add_job(job_list, new_job(pid_fork, command, STOPPED));
+				}
+				printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_wait, command, status_strings[status_res], info);
 				unblock_SIGCHLD();
 			}
 			else{//bring from stopped to background
 				if(!is_stopped){
-					printf("This job (%s) is already in the background!",job_to_resume->command);
+					printf("This job (%s) is already in the background!\n",job_to_resume->command);
 					continue;
 				}
 				job_to_resume->state = BACKGROUND;
