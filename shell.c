@@ -96,14 +96,9 @@ int main(void)
 			}
 			job* job_to_resume;
 			if(args[1] != NULL){ //nos dan número
-				char* cmp;
-				unsigned short int suspected_index = strtoul(args[1], &cmp, 0);
-				if(cmp == args[1]){
-					printf("Usage: <fg/bg> <job index>\n");
-					continue;
-				}
-				else if(suspected_index == 0 || suspected_index > list_size(job_list)){
-					printf("Index out of bounds for jobs\n");
+				unsigned short int suspected_index = atoi(args[1]);
+				if(suspected_index == 0 || suspected_index > list_size(job_list)){
+					printf("Index %d out of bounds for jobs\n", suspected_index);
 					continue;
 				}
 				else job_to_resume = get_item_bypos(job_list, suspected_index);
