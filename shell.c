@@ -25,27 +25,26 @@ void sigchld_handler(int num_sig) {
 	int status;
 	pid_t pid_wait;
 	int info;
-	job_iterator iter = get_iterator(job_list);
-	while(has_next(iter)){
-		job *j = next(iter);
-		pid_wait = waitpid(j->pgid, &status, WNOHANG | WUNTRACED | WCONTINUED);
-		if(pid_wait == j->pgid){
-			enum status status_res = analyze_status(status, &info);
-			printf("Background pid: %d, command %s, %s, info: %d\n",j->pgid, j->command, status_strings[status_res], info);
-			if(status_res == SUSPENDED){
-				j->state = STOPPED;
-			}
-			else if(status_res == CONTINUED){
-				j->state = BACKGROUND;
-			}
-			else{
-				delete_job(job_list, j);
-				
-			}
-		}else if(pid_wait == -1){
-			perror("Wait error sigchld");
-		}
-	}
+	job_iterator iter;
+	job *j;
+	while ((pid_wait = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0) {
+        iter = get_iterator(job_list);
+        while (has_next(iter)) {
+            j = next(iter);
+            if (j->pgid == pid_wait) {
+                enum status status_res = analyze_status(status, &info);
+                printf("Background pid: %d, command %s, %s, info: %d\n", j->pgid, j->command, status_strings[status_res], info);
+                if (status_res == SUSPENDED) {
+                    j->state = STOPPED;
+                } else if (status_res == CONTINUED) {
+                    j->state = BACKGROUND;
+                } else {
+                    delete_job(job_list, j);
+                }
+                break;
+            }
+        }
+    }
 }
 
 /**
@@ -92,38 +91,39 @@ int main(void)
 		} else if(!strcmp(args[0], "jobs"))	
 			if(empty_list(job_list)) printf("no jobs running at the moment.\n"); 
 			else print_job_list(job_list);
-		else if(!strcmp(args[0], "fg") || !strcmp(args[0], "bg")){
-			if(list_size(job_list) == 0){
+		else if(!strcmp(args[0], "fg") || !strcmp(args[0], "bg")) {
+			if (empty_list(job_list)) {
 				printf("no jobs to manipulate.\n");
 				continue;
 			}
-			job* job_to_resume;
-			if(args[1] != NULL){ //nos dan número
-				unsigned short int suspected_index = atoi(args[1]);
-				if(suspected_index == 0 || suspected_index > list_size(job_list)){
-					printf("Index %d out of bounds for jobs\n", suspected_index);
+			job *job_to_resume;
+			unsigned short int index = 1; // Default to most recent job (position 1)
+			if (args[1] != NULL) {
+				index = atoi(args[1]);
+				if (index < 1 || index > list_size(job_list)) {
+					printf("Index %d out of bounds for jobs\n", index);
 					continue;
 				}
-				else job_to_resume = get_item_bypos(job_list, suspected_index);
-			} else job_to_resume = get_item_bypos(job_list, list_size(job_list));
-			
-			unsigned short int is_stopped = job_to_resume->state == STOPPED;
+			}
+			job_to_resume = get_item_bypos(job_list, index);
+			int is_stopped = (job_to_resume->state == STOPPED);
 			pid_t pid_job = job_to_resume->pgid;
-			char* command = malloc(sizeof(char) * (strlen(job_to_resume->command) + 1));
-			strcpy(command, job_to_resume->command);
-			if(!strcmp(args[0], "fg")){//bring to foreground, stopped or not
+			char *command = strdup(job_to_resume->command);
+
+			if (!strcmp(args[0], "fg")) {
 				block_SIGCHLD();
 				delete_job(job_list, job_to_resume);
 				set_terminal(pid_job);
-				if(is_stopped) killpg(pid_job, SIGCONT);
+				if (is_stopped)
+					killpg(pid_job, SIGCONT);
 				pid_wait = waitpid(pid_job, &status, WUNTRACED);
 				set_terminal(getpid());
 				status_res = analyze_status(status, &info);
-				if(status_res == SUSPENDED){
-					add_job(job_list, new_job(pid_fork, command, STOPPED));
-				}
-				printf("Foreground pid: %d, command: %s, %s, info: %d\n",pid_wait, command, status_strings[status_res], info);
-				unblock_SIGCHLD();
+				if (status_res == SUSPENDED)
+					add_job(job_list, new_job(pid_wait, command, STOPPED));
+				printf("Foreground pid: %d, command: %s, %s, info: %d\n",
+					   pid_wait, command, status_strings[status_res], info);
+				unblock_SIGCHLD();				
 			}
 			else{//bring from stopped to background
 				if(!is_stopped){
@@ -133,8 +133,8 @@ int main(void)
 				job_to_resume->state = BACKGROUND;
 				killpg(job_to_resume->pgid, SIGCONT);
 			}
-		}
-		else {
+			free(command);
+		} else {
 			pid_fork = fork();
 			if(pid_fork > 0){ //hijo
 				new_process_group(pid_fork);
